@@ -1,4 +1,4 @@
-## My Project
+## AI Powered Meeting Assistant for Amazon Chime
 
 TODO: Fill this README out!
 
