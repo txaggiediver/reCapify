@@ -72,3 +72,7 @@ See the [CONTRIBUTING](CONTRIBUTING) file for more information.
 
 ## License
 This repository is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
+
+## Contributors
+- Kevin Pinkerton
+- Lawton Pittenger
