@@ -76,3 +76,4 @@ This repository is licensed under the MIT-0 License. See the [LICENSE](LICENSE) 
 ## Contributors
 - Kevin Pinkerton
 - Lawton Pittenger
+- Eashan Kaushik
