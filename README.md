@@ -77,3 +77,4 @@ This repository is licensed under the MIT-0 License. See the [LICENSE](LICENSE) 
 - Kevin Pinkerton
 - Lawton Pittenger
 - Eashan Kaushik
+- Chase Pinkerton
