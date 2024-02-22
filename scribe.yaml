@@ -93,7 +93,11 @@ Resources:
             Statement:
               - Effect: 'Allow'
                 Action:
-                  - 'ecr:*'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:CompleteLayerUpload'
+                  - 'ecr:InitiateLayerUpload'
+                  - 'ecr:PutImage'
+                  - 'ecr:UploadLayerPart'
                 Resource:
                   - !GetAtt ImageRepo.Arn
               - Effect: 'Allow'
@@ -550,10 +554,33 @@ Resources:
             Action: sts:AssumeRole
       MaxSessionDuration: 36000
       ManagedPolicyArns:
-        # AWS managed policies required to allow ECS task to function properly.
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole
-        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
         - !GetAtt LogsPolicy.PolicyArn
+      Policies:
+        - PolicyName: ECRPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                  - 'ecs:RunTask'
+                Resource: '*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action: ecs:TagResource
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ecs:CreateAction:
+                      - RunTask
 
   Cluster:
     Type: 'AWS::ECS::Cluster'
@@ -611,8 +638,29 @@ Resources:
                 - events.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceEventsRole
         - !GetAtt LogsPolicy.PolicyArn
+      Policies:
+        - PolicyName: ECRPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecs:RunTask'
+                Resource: '*'
+              - Effect: Allow
+                Action: iam:PassRole
+                Resource: "*"
+                Condition:
+                  StringLike:
+                    iam:PassedToService: ecs-tasks.amazonaws.com
+              - Effect: Allow
+                Action: ecs:TagResource
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    ecs:CreateAction:
+                      - RunTask
 
   SchedulerStateMachineLogGroup:
     Type: 'AWS::Logs::LogGroup'
@@ -924,8 +972,6 @@ Resources:
             Principal:
               Service: 'apigateway.amazonaws.com'
             Action: 'sts:AssumeRole'
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs'
       Policies:
       - PolicyName: StartSyncExecutionPolicy
         PolicyDocument:
@@ -935,6 +981,17 @@ Resources:
               Action:
                 - 'states:StartSyncExecution'
               Resource: !GetAtt SchedulerStateMachine.Arn
+          Statement:
+            - Effect: 'Allow'
+              Action:
+                - 'logs:CreateLogGroup'
+                - 'logs:CreateLogStream'
+                - 'logs:DescribeLogGroups'
+                - 'logs:DescribeLogStreams'
+                - 'logs:PutLogEvents'
+                - 'logs:GetLogEvents'
+                - 'logs:FilterLogEvents'
+              Resource: '*'
 
   ApiGatewayAccount:
     Type: AWS::ApiGateway::Account
