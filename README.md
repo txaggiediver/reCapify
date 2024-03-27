@@ -23,7 +23,7 @@ Using this application's website, you can invite an AI-assisted scribe bot to yo
 ## Getting Started
 
 ### Prerequisites
-To interact with Claude 2.0 on Bedrock, you need to [request access to the model in US East (North Virginia)](https://console.aws.amazon.com/bedrock/home?#/modelaccess)*. Make sure to read and accept the end-user license agreements or EULA.
+To interact with Claude 3.0 on Bedrock, you need to [request access to the model in US East (North Virginia)](https://console.aws.amazon.com/bedrock/home?#/modelaccess)*. Make sure to read and accept the end-user license agreements or EULA.
 
 ### Deployment
 - Per [guidance for workload isolation on AWS](https://aws.amazon.com/solutions/guidance/workload-isolation-on-aws/), it is recommended that you deploy the CloudFormation template in its own AWS account.
