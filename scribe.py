@@ -4,6 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.common.exceptions import StaleElementReferenceException
@@ -79,11 +80,12 @@ def initialize():
     ran = iter([False, True])
     while True:
         try:
-            WebDriverWait(driver, 1).until(EC.element_to_be_clickable((
+            WebDriverWait(driver, 2.5).until(EC.element_to_be_clickable((
                 By.CSS_SELECTOR, 
                 'button[data-testid="button"][aria-label^="Open chat panel"]'
             ))).click()
-        except TimeoutException:
+            break
+        except (ElementClickInterceptedException, TimeoutException):
             try:
                 dialogue = driver.find_element(
                     By.CSS_SELECTOR, 'div[data-testid="modal-body"]'
@@ -91,10 +93,11 @@ def initialize():
             except NoSuchElementException as e:
                 if next(ran): raise e
             else:
-                if "The organizer has been notified that you are waiting." not in dialogue:
+                if not (
+                    dialogue == "Connecting..." or 
+                    "The organizer has been notified that you are waiting." in dialogue
+                ):
                     deliver(dialogue)
-        else: 
-            break
 
     print("Sending introduction messages.")
     send_message(
@@ -214,7 +217,6 @@ def scrape_messages():
     global prev_sender
     global start
     global anonymize
-    end = False
 
     message_elements = driver.find_elements(By.CLASS_NAME, "chatMessage")
     chat_length = skipped_messages + len(messages)
@@ -265,17 +267,14 @@ def scrape_messages():
                     By.CLASS_NAME, "SLFfm3Dwo5MfFzks4uM11"
                 )
             except NoSuchElementException:
-                attachment_element = None
-
-            if attachment_element:
+                message += text
+            else:
                 file_name = attachment_element.get_attribute("title")
                 attachments[file_name] = attachment_element.get_attribute("href")
                 if text:
                     message += f"{text} | {file_name}"
                 else:
                     message += file_name
-            else:
-                message += text
 
             messages.append(message)
 
@@ -387,7 +386,6 @@ def deliver(message):
             "\nPlease output the title in <title></title> tags, the summary in <summary></summary> tags,"
             " and the action items in <action items></action items> tags."
         )
-        print(prompt)
         body = json.dumps({
             "max_tokens": 4096,
             "messages": [{"role": "user", "content": prompt}],
@@ -457,29 +455,31 @@ def deliver(message):
 
     exit()
 
-initialize()
+try:
+    initialize()
+except Exception as e:
+    deliver(str(e))
 
 print("Scraping...")
-ran = iter([False, True])
 iteration_count = 0
 while True:
+    sleep(1)
+
     try:
-        deliver(driver.find_element(
-            By.CSS_SELECTOR, 
-            '.MeetingEndContainer__subTitle, .Hq90rPeHQDqoB-F07ML2t'
-        ).text)
-    except NoSuchElementException:
-        sleep(1)
-
+        if iteration_count % 10  == 0:
+            scrape_attendees()
+        scrape_messages()
+        if start:
+            scrape_captions()
+    except StaleElementReferenceException:
+        pass
+    except Exception as e:
         try:
-            if iteration_count % 10  == 0:
-                scrape_attendees()
-            scrape_messages()
-            if start:
-                scrape_captions()
-        except (TimeoutException, NoSuchElementException) as e:
-            if next(ran): raise e
-        except StaleElementReferenceException:
-            pass
+            deliver(driver.find_element(
+                By.CSS_SELECTOR, 
+                '.MeetingEndContainer__subTitle, .Hq90rPeHQDqoB-F07ML2t'
+            ).text)
+        except NoSuchElementException:
+            deliver(str(e))
 
-        iteration_count += 1
+    iteration_count += 1
