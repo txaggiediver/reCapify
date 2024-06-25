@@ -25,7 +25,7 @@ export type Meeting = {
   meetingTime: string
 }
 
-interface CustomError {
+interface CustomMessage {
   type: string,
   dismissible: boolean,
   dismissLabel: string,
@@ -36,7 +36,7 @@ interface CustomError {
 
 function Layout() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [error, setError] = useState<CustomError[]>()
+  const [message, setMessage] = useState<CustomMessage[]>()
   var meetingApi: HttpService | null
 
   async function initializeMeetingApi() {
@@ -51,15 +51,15 @@ function Layout() {
     return meetingApi
   }
 
-  function setErrorProperties(err: any) {
-    setError([{
-      type: "error",
+  function setMessageProperties(message: any, type: "error" | "success") {
+    setMessage([{
+      type: type,
       dismissible: true,
-      dismissLabel: "Error",
-      onDismiss: () => setError([]),
+      dismissLabel: "Dismiss",
+      onDismiss: () => setMessage([]),
       content: (
         <>
-          {err.message}
+          {message}
         </>
       ),
       id: "message_1"
@@ -74,21 +74,19 @@ function Layout() {
 
         request.then((response) => {
           setSchedules(response.data)
-          setError([])
+          setMessage([])
         }).catch((err) => {
           if (!(err instanceof CanceledError)) {
-            setErrorProperties(err)
+            setMessageProperties(err.message, "error")
           }
         })
-
         return () => cancel()
 
       } catch (err) {
-        setErrorProperties(err)
+        setMessageProperties((err as Error).message, "error")
       }
     }
     initializeSession()
-
   }, [])
 
   const createInvite = async (meeting: Meeting) => {
@@ -100,15 +98,14 @@ function Layout() {
 
       request.then((response) => {
         setSchedules(response.data)
-        setError([])
       }).catch((err) => {
-        setErrorProperties(err)
+        setMessageProperties((err as Error).message, "error")
+      }).finally(() => {
+        setMessageProperties(meeting.meetingName + " invite created!", "success")
       })
 
-      setError([])
-
     }).catch(err => {
-      setErrorProperties(err)
+      setMessageProperties((err as Error).message, "error")
       setSchedules(schedulesCopy)
     })
   }
@@ -126,11 +123,12 @@ function Layout() {
         initializedMeetingApi.delete<{
           meetingName: string
         }>(meetingProperties).then(() => {
-          setError([])
           schedulesCopy = schedulesCopy.filter(schedule => schedule.Name !== selectedItem.Name)
           setSchedules([...schedulesCopy])
         }).catch(err => {
-          setErrorProperties(err)
+          setMessageProperties((err as Error).message, "error")
+        }).finally(() => {
+          setMessageProperties("Selected invite(s) deleted!", "success")
         })
       })
     }
@@ -142,9 +140,9 @@ function Layout() {
         navigationHide={true}
         toolsHide={true}
         notifications={
-          error?.length !== 0 && (
+          message?.length !== 0 && (
             <Flashbar
-              items={error ? error as any : []}
+              items={message ? message as any : []}
             />
           )
         }
