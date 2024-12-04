@@ -29,7 +29,6 @@ export default class BaseStack extends Stack {
 
         const email = new CfnParameter(this, 'email', {
             type: 'String',
-            description: 'This address is used to send meeting transcripts, summaries, action items, etc.',
             allowedPattern: '^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$',
             default: this.node.tryGetContext('email')
         });
