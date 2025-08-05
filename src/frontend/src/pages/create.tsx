@@ -17,276 +17,304 @@ import {
 import { generateClient } from "aws-amplify/api";
 import { useContext, useState } from "react";
 import { CreateInviteInput } from "../API";
-import NavigationComponent from "../components/navigation";
-import FlashbarContext, {
-    FlashbarComponent,
-} from "../components/notifications";
-import { createInvite } from "../graphql/mutations";
-import { MeetingPlatform, meetingPlatforms } from "../platform";
+import { NotificationContext } from "../components/notifications";
+import { meetingPlatforms } from "../platform";
+import * as mutations from "../graphql/mutations";
 
-const Create = () => {
-    const [navigationOpen, setNavigationOpen] = useState<boolean>(true);
-    const { updateFlashbar } = useContext(FlashbarContext);
-    const [checked, setChecked] = useState(false);
+const client = generateClient();
 
-    const [inviteName, setInviteName] = useState("");
-    const [meetingPlatform, setMeetingPlatform] = useState(meetingPlatforms[0]);
-    const [meetingId, setMeetingId] = useState("");
+export default function Create() {
+    const [name, setName] = useState("");
+    const [platform, setPlatform] = useState("Chime");
+    const [meetingUrl, setMeetingUrl] = useState("");
     const [meetingPassword, setMeetingPassword] = useState("");
-    const [meetingDate, setMeetingDate] = useState("");
-    const [meetingTime, setMeetingTime] = useState("");
+    const [showMeetingPassword, setShowMeetingPassword] = useState(false);
+    const [meetingDate, setMeetingDate] = useState<string | null>(null);
+    const [meetingTime, setMeetingTime] = useState<string | null>(null);
+    const [showDateTime, setShowDateTime] = useState(false);
+    const [error, setError] = useState("");
+    const { addNotification } = useContext(NotificationContext);
 
-    const [meetingTimeError, setMeetingTimeError] = useState("");
-
-    const validateMeetingTime = (time: string) => {
-        if (!time) {
-            setMeetingTimeError("");
-        } else if (time.length !== 5) {
-            setMeetingTimeError("Meeting time is incomplete.");
-        } else {
-            var meetingDateTime = new Date(meetingDate);
-            meetingDateTime.setDate(meetingDateTime.getDate() + 1);
-            const [hour, minute] = time.split(":").map(Number);
-            meetingDateTime.setHours(hour, minute, 0, 0);
-
-            const minuteDifference =
-                (meetingDateTime.getTime() - new Date().getTime()) /
-                (1000 * 60);
-
-            if (minuteDifference >= 2) {
-                setMeetingTimeError("");
-            } else {
-                setMeetingTimeError(
-                    "Meeting time must be at least two minutes out from now."
-                );
-            }
+    const validatePlatform = (platform: string, url: string) => {
+        switch (platform) {
+            case "Teams":
+                return url.includes("teams.microsoft.com/l/meetup-join");
+            case "Chime":
+                return url.includes("chime.aws");
+            case "Webex":
+                return url.includes("webex.com");
+            default:
+                return false;
         }
     };
 
-    const submitMeetingForm = async () => {
-        if (meetingTime) {
-            var meetingDateTime = new Date(meetingDate + "T" + meetingTime);
-        } else {
-            const coeff = 1000 * 60;
-            var meetingDateTime = new Date(
-                Math.ceil(new Date().getTime() / coeff) * coeff
-            );
+    const handleSubmit = async (event: any) => {
+        event.preventDefault();
+
+        if (!name) {
+            setError("Name is required");
+            return;
+        }
+
+        if (!meetingUrl) {
+            setError("Meeting URL is required");
+            return;
+        }
+
+        if (!validatePlatform(platform, meetingUrl)) {
+            setError(`Invalid meeting URL for ${platform}`);
+            return;
         }
 
         const input: CreateInviteInput = {
-            name: inviteName,
-            meetingPlatform: meetingPlatform.value,
-            meetingId: meetingId.replace(/ /g, ""),
-            meetingTime: Math.floor(
-                new Date(meetingDateTime.toUTCString()).getTime() / 1000
-            ),
-            ...(meetingPassword ? { meetingPassword: meetingPassword } : {}),
+            name,
+            platform,
+            meetingURL: meetingUrl,
         };
 
-        setInviteName("");
-        setMeetingId("");
-        setMeetingPassword("");
-        setMeetingDate("");
-        setMeetingTime("");
+        if (showMeetingPassword && meetingPassword) {
+            input.meetingPassword = meetingPassword;
+        }
 
-        const client = generateClient();
+        if (showDateTime && meetingDate && meetingTime) {
+            const [hours, minutes] = meetingTime.split(":");
+            const date = new Date(meetingDate);
+            date.setHours(parseInt(hours));
+            date.setMinutes(parseInt(minutes));
+            input.meetingTime = date.toISOString();
+        }
+
         try {
             await client.graphql({
-                query: createInvite,
-                variables: {
-                    input: input,
-                },
+                query: mutations.createInvite,
+                variables: { input },
             });
-            updateFlashbar("success", `${input.name} invite created!`);
+
+            addNotification({
+                type: "success",
+                content: "Successfully created invite",
+                dismissible: true,
+                onDismiss: () => {},
+            });
+
+            setName("");
+            setPlatform("Chime");
+            setMeetingUrl("");
+            setMeetingPassword("");
+            setShowMeetingPassword(false);
+            setMeetingDate(null);
+            setMeetingTime(null);
+            setShowDateTime(false);
+            setError("");
         } catch (error) {
-            const errorMessage = "Failed to create invite.";
-            console.error(errorMessage, error);
-            updateFlashbar("error", errorMessage);
+            console.error(error);
+            setError("Error creating invite");
+        }
+    };
+
+    const handleSchedule = async (event: any) => {
+        event.preventDefault();
+
+        if (!name) {
+            setError("Name is required");
+            return;
+        }
+
+        if (!meetingUrl) {
+            setError("Meeting URL is required");
+            return;
+        }
+
+        if (!validatePlatform(platform, meetingUrl)) {
+            setError(`Invalid meeting URL for ${platform}`);
+            return;
+        }
+
+        if (!meetingDate) {
+            setError("Meeting date is required");
+            return;
+        }
+
+        if (!meetingTime) {
+            setError("Meeting time is required");
+            return;
+        }
+
+        const input: CreateInviteInput = {
+            name,
+            platform,
+            meetingURL: meetingUrl,
+        };
+
+        if (showMeetingPassword && meetingPassword) {
+            input.meetingPassword = meetingPassword;
+        }
+
+        const [hours, minutes] = meetingTime.split(":");
+        const date = new Date(meetingDate);
+        date.setHours(parseInt(hours));
+        date.setMinutes(parseInt(minutes));
+        input.meetingTime = date.toISOString();
+
+        try {
+            await client.graphql({
+                query: mutations.createInvite,
+                variables: { input },
+            });
+
+            addNotification({
+                type: "success",
+                content: "Successfully scheduled invite",
+                dismissible: true,
+                onDismiss: () => {},
+            });
+
+            setName("");
+            setPlatform("Chime");
+            setMeetingUrl("");
+            setMeetingPassword("");
+            setShowMeetingPassword(false);
+            setMeetingDate(null);
+            setMeetingTime(null);
+            setShowDateTime(false);
+            setError("");
+        } catch (error) {
+            console.error(error);
+            setError("Error scheduling invite");
         }
     };
 
     return (
         <AppLayout
-            navigation={<NavigationComponent />}
-            navigationOpen={navigationOpen}
-            onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
-            notifications={<FlashbarComponent />}
-            toolsHide={false}
-            tools={
-                <HelpPanel header={<h3>Instructions</h3>}>
-                    <ul>
-                        <li>
-                            To invite a scribe to your upcoming meeting, enter
-                            the <strong>Invite Name</strong>,{" "}
-                            <strong>Meeting ID</strong>, and, optionally, the{" "}
-                            <strong>Meeting Time</strong>.
-                        </li>
-                        <li>
-                            Select the checkbox, then click{" "}
-                            <strong>Invite Now</strong> to invite the scribe to
-                            join the meeting as soon as possible or click{" "}
-                            <strong>Invite Later</strong> to schedule the
-                            scribe.
-                        </li>
-                    </ul>
-                </HelpPanel>
-            }
             content={
                 <ContentLayout
                     header={
                         <Header
-                            description={
-                                "Add an AI-assisted scribe to your upcoming meeting."
-                            }
+                            variant="h1"
+                            description="Invite a scribe to your meeting"
                         >
-                            Invite
+                            Create Invite
                         </Header>
                     }
                 >
-                    <form
-                        id="meetingForm"
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            submitMeetingForm();
-                        }}
-                    >
-                        <Form variant="embedded">
-                            <SpaceBetween direction="vertical" size="l">
-                                <FormField label="Invite Name">
-                                    <Input
-                                        onChange={({ detail }) =>
-                                            setInviteName(detail.value)
-                                        }
-                                        value={inviteName}
-                                    />
-                                </FormField>
-
-                                <FormField label="Meeting Platform">
-                                    <Select
-                                        onChange={({ detail }) =>
-                                            setMeetingPlatform(
-                                                detail.selectedOption as MeetingPlatform
-                                            )
-                                        }
-                                        options={meetingPlatforms}
-                                        selectedOption={meetingPlatform}
-                                    />
-                                </FormField>
-
-                                <FormField label="Meeting ID">
-                                    <Input
-                                        onChange={({ detail }) =>
-                                            setMeetingId(detail.value)
-                                        }
-                                        value={meetingId}
-                                    />
-                                </FormField>
-
-                                {/* <FormField label="Meeting Password">
-                                    <Input
-                                        onChange={({ detail }) => setMeetingPassword(detail.value)}
-                                        value={meetingPassword}
-                                        type="password"
-                                    />
-                                </FormField> */}
-
-                                <FormField
-                                    label="Meeting Time"
-                                    description="Choose a date and local time that is at least two minutes out from now."
+                    <Form
+                        actions={
+                            <SpaceBetween direction="horizontal" size="xs">
+                                <Button
+                                    formAction="submit"
+                                    variant="primary"
+                                    onClick={handleSubmit}
                                 >
-                                    <SpaceBetween
-                                        direction="horizontal"
-                                        size="l"
+                                    Invite Now
+                                </Button>
+                                {showDateTime && (
+                                    <Button
+                                        formAction="submit"
+                                        variant="primary"
+                                        onClick={handleSchedule}
                                     >
+                                        Invite Later
+                                    </Button>
+                                )}
+                            </SpaceBetween>
+                        }
+                    >
+                        <SpaceBetween direction="vertical" size="l">
+                            <FormField label="Name">
+                                <Input
+                                    value={name}
+                                    onChange={({ detail }) =>
+                                        setName(detail.value)
+                                    }
+                                />
+                            </FormField>
+                            <FormField label="Platform">
+                                <Select
+                                    selectedOption={
+                                        meetingPlatforms.find(
+                                            (p) => p.value === platform
+                                        ) || null
+                                    }
+                                    onChange={({ detail }) =>
+                                        setPlatform(detail.selectedOption.value)
+                                    }
+                                    options={meetingPlatforms}
+                                />
+                            </FormField>
+                            <FormField
+                                label="Meeting URL"
+                                description={
+                                    platform === "Teams"
+                                        ? "Enter the full Teams meeting URL"
+                                        : platform === "Chime"
+                                        ? "Enter the Chime meeting URL"
+                                        : "Enter the Webex meeting URL"
+                                }
+                            >
+                                <Input
+                                    value={meetingUrl}
+                                    onChange={({ detail }) =>
+                                        setMeetingUrl(detail.value)
+                                    }
+                                />
+                            </FormField>
+                            <FormField label="Meeting Password">
+                                <Checkbox
+                                    checked={showMeetingPassword}
+                                    onChange={({ detail }) =>
+                                        setShowMeetingPassword(detail.checked)
+                                    }
+                                >
+                                    Add meeting password
+                                </Checkbox>
+                                {showMeetingPassword && (
+                                    <Input
+                                        type="password"
+                                        value={meetingPassword}
+                                        onChange={({ detail }) =>
+                                            setMeetingPassword(detail.value)
+                                        }
+                                    />
+                                )}
+                            </FormField>
+                            <FormField label="Meeting Time">
+                                <Checkbox
+                                    checked={showDateTime}
+                                    onChange={({ detail }) =>
+                                        setShowDateTime(detail.checked)
+                                    }
+                                >
+                                    Schedule for later
+                                </Checkbox>
+                                {showDateTime && (
+                                    <SpaceBetween direction="horizontal" size="xs">
                                         <DatePicker
+                                            value={meetingDate}
                                             onChange={({ detail }) =>
                                                 setMeetingDate(detail.value)
                                             }
-                                            onBlur={() =>
-                                                validateMeetingTime(meetingTime)
-                                            }
-                                            value={meetingDate}
-                                            isDateEnabled={(date) => {
-                                                var currentDate = new Date();
-                                                currentDate.setDate(
-                                                    currentDate.getDate() - 1
-                                                );
-                                                return date > currentDate;
-                                            }}
-                                            placeholder="YYYY/MM/DD"
-                                            controlId="date"
                                         />
                                         <TimeInput
+                                            value={meetingTime}
                                             onChange={({ detail }) =>
                                                 setMeetingTime(detail.value)
                                             }
-                                            onBlur={() =>
-                                                validateMeetingTime(meetingTime)
-                                            }
-                                            value={meetingTime}
-                                            disabled={meetingDate.length !== 10}
-                                            format="hh:mm"
-                                            placeholder="hh:mm (24-hour format)"
-                                            use24Hour={true}
                                         />
                                     </SpaceBetween>
-                                    {meetingTimeError && (
-                                        <Alert type="error">
-                                            {" "}
-                                            {meetingTimeError}{" "}
-                                        </Alert>
-                                    )}
-                                </FormField>
-
-                                <Checkbox
-                                    onChange={({ detail }) =>
-                                        setChecked(detail.checked)
-                                    }
-                                    checked={checked}
-                                >
-                                    I will not violate legal, corporate, or
-                                    ethical restrictions that apply to meeting
-                                    transcription and summarization.
-                                </Checkbox>
-
-                                <FormField>
-                                    <SpaceBetween
-                                        direction="horizontal"
-                                        size="l"
-                                    >
-                                        <Button
-                                            variant="normal"
-                                            form="meetingForm"
-                                            disabled={
-                                                !meetingId ||
-                                                !inviteName ||
-                                                !checked
-                                            }
-                                        >
-                                            Invite Now
-                                        </Button>
-                                        <Button
-                                            variant="primary"
-                                            form="meetingForm"
-                                            disabled={
-                                                !meetingId ||
-                                                !inviteName ||
-                                                !meetingTime ||
-                                                !!meetingTimeError ||
-                                                !checked
-                                            }
-                                        >
-                                            Invite Later
-                                        </Button>
-                                    </SpaceBetween>
-                                </FormField>
-                            </SpaceBetween>
-                        </Form>
-                    </form>
+                                )}
+                            </FormField>
+                        </SpaceBetween>
+                    </Form>
+                    {error && (
+                        <Alert type="error" header="Error">
+                            {error}
+                        </Alert>
+                    )}
                 </ContentLayout>
             }
+            navigationHide={true}
+            toolsHide={true}
         />
     );
-};
+}
 
-export default Create;

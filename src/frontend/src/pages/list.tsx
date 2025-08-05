@@ -18,9 +18,7 @@ import { meetingPlatforms } from "../platform";
 
 const List = () => {
     const [navigationOpen, setNavigationOpen] = useState<boolean>(true);
-
     const client = generateClient();
-
     const [invites, setInvites] = useState<Invite[]>([]);
     const [selectedInvites, setSelectedInvites] = useState<Invite[]>();
 
@@ -37,6 +35,19 @@ const List = () => {
         };
         fetchInvites();
     }, []);
+
+    // Function to get platform label
+    const getPlatformLabel = (platformValue: string) => {
+        const platform = meetingPlatforms.find(p => p.value === platformValue);
+        return platform ? platform.label : platformValue;
+    };
+
+    // Function to format meeting status
+    const getStatusBadge = (status: string, platform: string) => {
+        const statusText = status ?? "Scheduled";
+        const platformText = getPlatformLabel(platform);
+        return `${statusText} (${platformText})`;
+    };
 
     return (
         <AppLayout
@@ -59,30 +70,28 @@ const List = () => {
                 <ContentLayout
                     header={
                         <Header
-                            counter={"[" + invites.length.toString() + "]"}
+                            counter={`[${invites.length}]`}
                             actions={
                                 <Button
                                     onClick={() => {
                                         if (selectedInvites) {
-                                            selectedInvites.forEach(
-                                                (invite) => {
-                                                    client
-                                                        .graphql({
-                                                            query: deleteInvite,
-                                                            variables: {
-                                                                input: {
-                                                                    id: invite.id,
-                                                                },
+                                            selectedInvites.forEach((invite) => {
+                                                client
+                                                    .graphql({
+                                                        query: deleteInvite,
+                                                        variables: {
+                                                            input: {
+                                                                id: invite.id,
                                                             },
-                                                        })
-                                                        .catch((error) => {
-                                                            console.error(
-                                                                "Failed to delete invite.",
-                                                                error
-                                                            );
-                                                        });
-                                                }
-                                            );
+                                                        },
+                                                    })
+                                                    .catch((error) => {
+                                                        console.error(
+                                                            "Failed to delete invite.",
+                                                            error
+                                                        );
+                                                    });
+                                            });
                                             setInvites(
                                                 invites.filter(
                                                     (invite) =>
@@ -119,16 +128,12 @@ const List = () => {
                                     id: "meeting_platform",
                                     header: "Meeting Platform",
                                     content: (invite) =>
-                                        meetingPlatforms.find(
-                                            (platform) =>
-                                                platform.value ===
-                                                invite.meetingPlatform
-                                        )?.label,
+                                        getPlatformLabel(invite.platform),
                                 },
                                 {
-                                    id: "meeting_id",
-                                    header: "Meeting ID",
-                                    content: (invite) => invite.meetingId,
+                                    id: "meeting_url",
+                                    header: "Meeting URL",
+                                    content: (invite) => invite.meetingURL,
                                 },
                                 {
                                     id: "meeting_password",
@@ -139,10 +144,12 @@ const List = () => {
                                     id: "meeting_time",
                                     header: "Meeting Time",
                                     content: (invite) => {
+                                        if (!invite.meetingTime) return "Immediate";
                                         const meetingDateTime = new Date(
-                                            invite.meetingTime * 1000
+                                            invite.meetingTime
                                         );
-                                        const options: Intl.DateTimeFormatOptions =
+                                        return meetingDateTime.toLocaleString(
+                                            "en-US",
                                             {
                                                 year: "numeric",
                                                 month: "long",
@@ -150,10 +157,7 @@ const List = () => {
                                                 hour: "2-digit",
                                                 minute: "2-digit",
                                                 timeZoneName: "short",
-                                            };
-                                        return meetingDateTime.toLocaleString(
-                                            "en-US",
-                                            options
+                                            }
                                         );
                                     },
                                 },
@@ -161,7 +165,10 @@ const List = () => {
                                     id: "scribe_status",
                                     header: "Scribe Status",
                                     content: (invite) =>
-                                        invite.status ?? "Scheduled",
+                                        getStatusBadge(
+                                            invite.status,
+                                            invite.platform
+                                        ),
                                 },
                             ],
                         }}
@@ -175,7 +182,7 @@ const List = () => {
                         selectionType="multi"
                         visibleSections={[
                             "meeting_platform",
-                            "meeting_id",
+                            "meeting_url",
                             "meeting_time",
                             "scribe_status",
                         ]}
@@ -196,3 +203,4 @@ const List = () => {
 };
 
 export default List;
+
