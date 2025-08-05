@@ -2,6 +2,7 @@ import { details } from "./details.js";
 import { transcriptionService } from "./scribe.js";
 import { chromium, Browser, Page } from "playwright";
 import Chime from "./chime.js";
+import Teams from "./teams.js";
 import Webex from "./webex.js";
 import { encapsulate } from "./process.js";
 
@@ -33,12 +34,15 @@ const main = async () => {
     const page: Page = await browser.newPage();
     page.setDefaultTimeout(20000);
 
-    let meeting: any;
-    if (details.invite.meetingPlatform === "Chime") {
-        meeting = new Chime();
-    } else if (details.invite.meetingPlatform === "Webex") {
-        meeting = new Webex();
-    }
+let meeting: any;
+if (details.invite.meetingPlatform === "Chime") {
+    meeting = new Chime();
+} else if (details.invite.meetingPlatform === "Webex") {
+    meeting = new Webex();
+} else if (details.invite.meetingPlatform === "Teams") {
+    meeting = new Teams();
+}
+
     await meeting.initialize(page);
 
     await browser.close();
