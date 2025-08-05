@@ -45,7 +45,7 @@ export default class AuthStack extends Stack {
 
         this.userPool = new cognito.UserPool(this, "userPool", {
             removalPolicy: RemovalPolicy.DESTROY,
-            selfSignUpEnabled: true,
+            selfSignUpEnabled: false,
             signInAliases: { email: true },
             passwordPolicy: {
                 minLength: 8,
