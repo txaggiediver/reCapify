@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Automated Meeting Scribe and Summarizer Template
+Description: Automated Meeting Scribe and Summarizer Template with Teams Support
 
 Parameters:
   Email:
@@ -22,37 +22,15 @@ Resources:
                 - codebuild.amazonaws.com
             Action:
               - sts:AssumeRole
-      Policies:
-        - PolicyName: LogsPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/BuildProject-*
-        - PolicyName: BootstrapPolicy
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudformation:*
-                  - ecr:*
-                  - ssm:*
-                  - s3:*
-                  - iam:*
-                Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
 
   BuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Source:
         Type: GITHUB
-        Location: https://github.com/aws-samples/automated-meeting-scribe-and-summarizer.git
+        Location: https://github.com/txaggiediver/reCapify.git
         BuildSpec: |
           version: 0.2
           phases:
@@ -70,7 +48,6 @@ Resources:
             post_build:
               commands:
                 - cdk deploy --all --require-approval never
-      # SourceVersion: dev
       Environment:
         Type: ARM_CONTAINER
         Image: aws/codebuild/amazonlinux-aarch64-standard:3.0
@@ -134,14 +111,6 @@ Resources:
               build_id = client.start_build(
                 projectName=event['ResourceProperties']['PROJECT']
               )['build']['id']
-              # status = 'STARTING'
-              # while status != 'SUCCEEDED':
-              #   if status in ['FAILED', 'FAULT', 'TIMED_OUT', 'STOPPED']:
-              #     cfnresponse.send(event, context, cfnresponse.FAILED, {})
-              #     return
-              #   sleep(15)
-              #   status = client.batch_get_builds(ids=[build_id])['builds'][0]['buildStatus']
-              #   print(status)
               client.delete_project(name=event['ResourceProperties']['PROJECT'])
             cfnresponse.send(event, context, cfnresponse.SUCCESS, {'buildId': build_id})
 
