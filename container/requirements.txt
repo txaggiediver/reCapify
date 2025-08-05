@@ -1,5 +1,0 @@
-playwright
-boto3
-requests
-python-jose
-
