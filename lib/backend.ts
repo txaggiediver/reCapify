@@ -17,7 +17,7 @@ import {
 import { AmplifyGraphqlApi } from "@aws-amplify/graphql-api-construct";
 import { Construct } from "constructs";
 
-export class ChimeBotBackendStack extends Stack {
+export default class ChimeBotBackendStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 

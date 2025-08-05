@@ -5,7 +5,7 @@ import FrontendStack from "../lib/frontend";
 import BackendStack from "../lib/backend";
 
 const app = new App();
-const name = process.env.STACK_NAME || "Scribe";
+const name = process.env.STACK_NAME || "ReCapify";
 const regionConfig = {
     env: {
         region: process.env.AWS_REGION || "us-east-1",
