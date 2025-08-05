@@ -64,15 +64,18 @@ export default class ReCapifyBackendStack extends Stack {
       taskRole: taskRole,
     });
 
+    // Log Group
+    const logGroup = new logs.LogGroup(this, 'containerLogGroup', {
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: RemovalPolicy.RETAIN,
+    });
+
     // Container
     const container = taskDefinition.addContainer('container', {
       image: ecs.ContainerImage.fromAsset('container'),
       logging: new ecs.AwsLogDriver({
         streamPrefix: 'recapify',
-        logGroup: new logs.LogGroup(this, 'containerLogGroup', {
-          retention: logs.RetentionDays.ONE_WEEK,
-          removalPolicy: RemovalPolicy.RETAIN,
-        }),
+        logGroup: logGroup,
       }),
       environment: {
         ENABLE_TEAMS: 'true',  // Enable Teams support
@@ -87,7 +90,7 @@ export default class ReCapifyBackendStack extends Stack {
       vpc: vpc,
       allowAllOutbound: true,
     });
-        
+
     // EventBridge Scheduler Role
     const eventbridgeSchedulerRole = new iam.Role(this, 'eventbridgeSchedulerRole', {
       assumedBy: new iam.CompositePrincipal(
@@ -95,12 +98,12 @@ export default class ReCapifyBackendStack extends Stack {
         new iam.ServicePrincipal('scheduler.amazonaws.com'),
       ),
     });
-    
+
     eventbridgeSchedulerRole.addToPolicy(new iam.PolicyStatement({
       actions: ['ecs:RunTask'],
       resources: [taskDefinition.taskDefinitionArn],
     }));
-      
+
     eventbridgeSchedulerRole.addToPolicy(new iam.PolicyStatement({
       actions: ['iam:PassRole'],
       resources: [taskRole.roleArn, taskDefinition.executionRole!.roleArn],
@@ -110,10 +113,10 @@ export default class ReCapifyBackendStack extends Stack {
         },
       },
     }));
-          
+
     // Schedule Group
     const scheduleGroup = new scheduler.CfnScheduleGroup(this, 'meetingScheduleGroup', {});
-         
+
     // Lambda Function for Scheduling
     const schedulerFunction = new lambda.Function(this, 'schedulerFunction', {
       runtime: lambda.Runtime.PYTHON_3_12,
@@ -133,7 +136,7 @@ export default class ReCapifyBackendStack extends Stack {
         SCHEDULER_ROLE_ARN: eventbridgeSchedulerRole.roleArn,
       },
     });
-        
+
     // Add necessary permissions to the scheduler function
     schedulerFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: [
@@ -145,7 +148,7 @@ export default class ReCapifyBackendStack extends Stack {
       ],
       resources: [`arn:aws:scheduler:*:*:schedule/${scheduleGroup.ref}/*`],
     }));
-        
+
     schedulerFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: ['iam:PassRole'],
       resources: [eventbridgeSchedulerRole.roleArn],
@@ -153,9 +156,9 @@ export default class ReCapifyBackendStack extends Stack {
         StringLike: {
           'iam:PassedToService': 'scheduler.amazonaws.com',
         },
-      }, 
+      },
     }));
-    
+
     // Add DynamoDB Stream as event source
     const table = apiStack.graphApi.resources.tables.Invite;
     schedulerFunction.addEventSource(new lambda_event_sources.DynamoEventSource(table, {
@@ -164,38 +167,37 @@ export default class ReCapifyBackendStack extends Stack {
       maxBatchingWindow: Duration.seconds(30),
       retryAttempts: 3,
     }));
-        
+
     // Outputs
     new CfnOutput(this, 'ClusterName', {
       value: cluster.clusterName,
       description: 'ECS Cluster Name',
     });
-        
+
     new CfnOutput(this, 'TaskDefinitionArn', {
       value: taskDefinition.taskDefinitionArn,
       description: 'Task Definition ARN',
     });
-    
-    new CfnOutput(this, 'LogGroupName', {
-  value: container.logGroupName || 'No log group',
-  description: 'Container Log Group Name',
-});
 
-        
-    new CfnOutput(this, 'VpcId', { 
+    new CfnOutput(this, 'LogGroupName', {
+      value: logGroup.logGroupName,
+      description: 'Container Log Group Name',
+    });
+
+    new CfnOutput(this, 'VpcId', {
       value: vpc.vpcId,
       description: 'VPC ID',
-    }); 
-        
+    });
+
     new CfnOutput(this, 'SecurityGroupId', {
       value: securityGroup.securityGroupId,
       description: 'Security Group ID',
     });
-        
+
     new CfnOutput(this, 'SchedulerFunctionName', {
       value: schedulerFunction.functionName,
       description: 'Scheduler Lambda Function Name',
-    }); 
-  } 
+    });
+  }
 }
 
