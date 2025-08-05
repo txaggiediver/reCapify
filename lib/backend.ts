@@ -7,7 +7,6 @@ import {
   RemovalPolicy,
   aws_ecs as ecs,
   aws_iam as iam,
-  aws_ecr_assets as ecr_assets,
   aws_scheduler as scheduler,
   aws_lambda as lambda,
   Duration,
@@ -16,10 +15,19 @@ import {
 } from "aws-cdk-lib";
 import { AmplifyGraphqlApi } from "@aws-amplify/graphql-api-construct";
 import { Construct } from "constructs";
+import AuthStack from "./auth";
+import ApiStack from "./api";
 
-export default class ChimeBotBackendStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+interface BackendStackProps extends StackProps {
+  authStack: AuthStack;
+  apiStack: ApiStack;
+}
+
+export default class ReCapifyBackendStack extends Stack {
+  constructor(scope: Construct, id: string, props: BackendStackProps) {
     super(scope, id, props);
+
+    const { authStack, apiStack } = props;
 
     // VPC
     const vpc = new ec2.Vpc(this, 'vpc', {
@@ -70,7 +78,7 @@ export default class ChimeBotBackendStack extends Stack {
         ENABLE_TEAMS: 'true',  // Enable Teams support
         TABLE_NAME: this.node.tryGetContext('tableName'),
         MEETING_INDEX: this.node.tryGetContext('meetingIndex'),
-        EMAIL_SOURCE: this.node.tryGetContext('emailSource'),
+        EMAIL_SOURCE: authStack.identity.emailIdentityName,
       },
     });
 
@@ -79,7 +87,7 @@ export default class ChimeBotBackendStack extends Stack {
       vpc: vpc,
       allowAllOutbound: true,
     });
-
+        
     // EventBridge Scheduler Role
     const eventbridgeSchedulerRole = new iam.Role(this, 'eventbridgeSchedulerRole', {
       assumedBy: new iam.CompositePrincipal(
@@ -87,12 +95,12 @@ export default class ChimeBotBackendStack extends Stack {
         new iam.ServicePrincipal('scheduler.amazonaws.com'),
       ),
     });
-
+    
     eventbridgeSchedulerRole.addToPolicy(new iam.PolicyStatement({
       actions: ['ecs:RunTask'],
       resources: [taskDefinition.taskDefinitionArn],
     }));
-
+      
     eventbridgeSchedulerRole.addToPolicy(new iam.PolicyStatement({
       actions: ['iam:PassRole'],
       resources: [taskRole.roleArn, taskDefinition.executionRole!.roleArn],
@@ -102,10 +110,10 @@ export default class ChimeBotBackendStack extends Stack {
         },
       },
     }));
-
+          
     // Schedule Group
     const scheduleGroup = new scheduler.CfnScheduleGroup(this, 'meetingScheduleGroup', {});
-
+         
     // Lambda Function for Scheduling
     const schedulerFunction = new lambda.Function(this, 'schedulerFunction', {
       runtime: lambda.Runtime.PYTHON_3_12,
@@ -120,12 +128,12 @@ export default class ChimeBotBackendStack extends Stack {
         CONTAINER_ID: container.containerName,
         TABLE_NAME: this.node.tryGetContext('tableName'),
         MEETING_INDEX: this.node.tryGetContext('meetingIndex'),
-        EMAIL_SOURCE: this.node.tryGetContext('emailSource'),
+        EMAIL_SOURCE: authStack.identity.emailIdentityName,
         SCHEDULE_GROUP: scheduleGroup.ref,
         SCHEDULER_ROLE_ARN: eventbridgeSchedulerRole.roleArn,
       },
     });
-
+        
     // Add necessary permissions to the scheduler function
     schedulerFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: [
@@ -137,7 +145,7 @@ export default class ChimeBotBackendStack extends Stack {
       ],
       resources: [`arn:aws:scheduler:*:*:schedule/${scheduleGroup.ref}/*`],
     }));
-
+        
     schedulerFunction.addToRolePolicy(new iam.PolicyStatement({
       actions: ['iam:PassRole'],
       resources: [eventbridgeSchedulerRole.roleArn],
@@ -145,48 +153,48 @@ export default class ChimeBotBackendStack extends Stack {
         StringLike: {
           'iam:PassedToService': 'scheduler.amazonaws.com',
         },
-      },
+      }, 
     }));
-
+    
     // Add DynamoDB Stream as event source
-    const table = this.node.tryGetContext('table');
+    const table = apiStack.graphApi.resources.tables.Invite;
     schedulerFunction.addEventSource(new lambda_event_sources.DynamoEventSource(table, {
       startingPosition: lambda.StartingPosition.LATEST,
       batchSize: 100,
       maxBatchingWindow: Duration.seconds(30),
       retryAttempts: 3,
     }));
-
+        
     // Outputs
     new CfnOutput(this, 'ClusterName', {
       value: cluster.clusterName,
       description: 'ECS Cluster Name',
     });
-
+        
     new CfnOutput(this, 'TaskDefinitionArn', {
       value: taskDefinition.taskDefinitionArn,
       description: 'Task Definition ARN',
     });
-
+    
     new CfnOutput(this, 'LogGroupName', {
       value: container.logGroup?.logGroupName || 'No log group',
       description: 'Container Log Group Name',
     });
-
-    new CfnOutput(this, 'VpcId', {
+        
+    new CfnOutput(this, 'VpcId', { 
       value: vpc.vpcId,
       description: 'VPC ID',
-    });
-
+    }); 
+        
     new CfnOutput(this, 'SecurityGroupId', {
       value: securityGroup.securityGroupId,
       description: 'Security Group ID',
     });
-
+        
     new CfnOutput(this, 'SchedulerFunctionName', {
       value: schedulerFunction.functionName,
       description: 'Scheduler Lambda Function Name',
-    });
-  }
+    }); 
+  } 
 }
 

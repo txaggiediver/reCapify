@@ -2,7 +2,7 @@ import { App } from "aws-cdk-lib";
 import AuthStack from "../lib/auth";
 import ApiStack from "../lib/api";
 import FrontendStack from "../lib/frontend";
-import BackendStack from "../lib/backend";
+import ReCapifyBackendStack from "../lib/backend";
 
 const app = new App();
 const name = process.env.STACK_NAME || "ReCapify";
@@ -32,8 +32,9 @@ new FrontendStack(app, `${name}-Frontend`, {
     crossRegionReferences: true,
 });
 
-new BackendStack(app, `${name}-Backend`, {
-    identity: authStack.identity,
-    graphApi: apiStack.graphApi,
+new ReCapifyBackendStack(app, `${name}-Backend`, {
+    authStack: authStack,
+    apiStack: apiStack,
     ...regionConfig,
 });
+
