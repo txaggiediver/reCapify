@@ -70,7 +70,7 @@ export default class ReCapifyBackendStack extends Stack {
       logging: new ecs.AwsLogDriver({
         streamPrefix: 'recapify',
         logGroup: new logs.LogGroup(this, 'containerLogGroup', {
-          retention: logs.RetentionDays.FIVE,
+          retention: logs.RetentionDays.ONE_WEEK,
           removalPolicy: RemovalPolicy.RETAIN,
         }),
       }),
@@ -177,9 +177,10 @@ export default class ReCapifyBackendStack extends Stack {
     });
     
     new CfnOutput(this, 'LogGroupName', {
-      value: container.logGroup?.logGroupName || 'No log group',
-      description: 'Container Log Group Name',
-    });
+  value: container.logGroupName || 'No log group',
+  description: 'Container Log Group Name',
+});
+
         
     new CfnOutput(this, 'VpcId', { 
       value: vpc.vpcId,
