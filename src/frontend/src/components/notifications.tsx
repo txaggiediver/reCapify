@@ -1,68 +1,54 @@
 import Flashbar from "@cloudscape-design/components/flashbar";
-import { createContext, useContext, useState } from "react";
+import { createContext, useState } from "react";
 
-type FlashbarType = "error" | "info" | "warning" | "success";
-
-export interface FlashbarItem {
-    type: FlashbarType;
-    content: string;
+interface NotificationContextType {
+    addNotification: (notification: NotificationItem) => void;
+    removeNotification: (id: string) => void;
 }
 
-const FlashbarContext = createContext<{
-    flashbarItems: FlashbarItem[];
-    updateFlashbar: (type: FlashbarType, content: string) => void;
-    handleDismiss: (index: number) => void;
-}>({
-    flashbarItems: [],
-    updateFlashbar: () => {},
-    handleDismiss: () => {},
+interface NotificationItem {
+    id?: string;
+    type: "success" | "error" | "info" | "warning";
+    content: string;
+    dismissible?: boolean;
+    onDismiss?: () => void;
+}
+
+export const NotificationContext = createContext<NotificationContextType>({
+    addNotification: () => {},
+    removeNotification: () => {},
 });
 
-export const FlashbarProvider = ({
-    children,
-}: {
-    children: React.ReactNode;
-}) => {
-    const [flashbarItems, setFlashbarItems] = useState<FlashbarItem[]>([]);
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-    const updateFlashbar = (type: FlashbarType, content: string) => {
-        setFlashbarItems((prevItems) => [...prevItems, { type, content }]);
+    const addNotification = (notification: NotificationItem) => {
+        const id = Math.random().toString(36).substr(2, 9);
+        setNotifications((current) => [...current, { ...notification, id }]);
     };
 
-    const handleDismiss = (index: number) => {
-        setFlashbarItems((prevItems) =>
-            prevItems.filter((_, i) => i !== index)
+    const removeNotification = (id: string) => {
+        setNotifications((current) =>
+            current.filter((notification) => notification.id !== id)
         );
     };
 
-    const contextValue = {
-        flashbarItems,
-        updateFlashbar,
-        handleDismiss,
-    };
-
     return (
-        <FlashbarContext.Provider value={contextValue}>
+        <NotificationContext.Provider value={{ addNotification, removeNotification }}>
+            <Flashbar 
+                items={notifications.map(notification => ({
+                    ...notification,
+                    onDismiss: notification.dismissible 
+                        ? () => {
+                            removeNotification(notification.id!);
+                            notification.onDismiss?.();
+                        }
+                        : undefined
+                }))}
+            />
             {children}
-        </FlashbarContext.Provider>
+        </NotificationContext.Provider>
     );
-};
+}
 
-export const FlashbarComponent = () => {
-    const { flashbarItems, handleDismiss } = useContext(FlashbarContext);
-
-    return (
-        <Flashbar
-            items={flashbarItems.map((item, index) => ({
-                type: item.type,
-                dismissible: true,
-                dismissLabel: "Dismiss",
-                onDismiss: () => handleDismiss(index),
-                content: item.content,
-            }))}
-            // stackItems
-        />
-    );
-};
-
-export default FlashbarContext;
+export default NotificationContext;
