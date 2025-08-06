@@ -1,11 +1,6 @@
 import Flashbar from "@cloudscape-design/components/flashbar";
 import { createContext, useState } from "react";
 
-interface NotificationContextType {
-    addNotification: (notification: NotificationItem) => void;
-    removeNotification: (id: string) => void;
-}
-
 interface NotificationItem {
     id?: string;
     type: "success" | "error" | "info" | "warning";
@@ -14,10 +9,21 @@ interface NotificationItem {
     onDismiss?: () => void;
 }
 
+export interface NotificationContextType {
+    addNotification: (notification: NotificationItem) => void;
+    removeNotification: (id: string) => void;
+    updateFlashbar: (type: "success" | "error" | "info" | "warning", message: string) => void;
+}
+
 export const NotificationContext = createContext<NotificationContextType>({
     addNotification: () => {},
     removeNotification: () => {},
+    updateFlashbar: () => {},
 });
+
+export const FlashbarComponent = ({ items }: { items: NotificationItem[] }) => (
+    <Flashbar items={items} />
+);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -33,9 +39,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         );
     };
 
+    const updateFlashbar = (type: "success" | "error" | "info" | "warning", message: string) => {
+        addNotification({
+            type,
+            content: message,
+            dismissible: true,
+        });
+    };
+
     return (
-        <NotificationContext.Provider value={{ addNotification, removeNotification }}>
-            <Flashbar 
+        <NotificationContext.Provider value={{ addNotification, removeNotification, updateFlashbar }}>
+            <FlashbarComponent 
                 items={notifications.map(notification => ({
                     ...notification,
                     onDismiss: notification.dismissible 
