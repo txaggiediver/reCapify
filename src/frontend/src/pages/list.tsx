@@ -13,14 +13,14 @@ import { Invite } from "../API";
 import NavigationComponent from "../components/navigation";
 import { FlashbarComponent } from "../components/notifications";
 import { deleteInvite } from "../graphql/mutations";
-import { listInvites } from "../graphql/queries";
+import { listInvitvites } from "../graphql/queries";
 import { meetingPlatforms } from "../platform";
 
 const List = () => {
     const [navigationOpen, setNavigationOpen] = useState<boolean>(true);
     const client = generateClient();
     const [invites, setInvites] = useState<Invite[]>([]);
-    const [selectedInvites, setSelectedInvites] = useState<Invite[]>();
+    const [selectedInvites, setSelectedInvites] = useState<Invite[]>([]);
 
     useEffect(() => {
         const fetchInvites = async () => {
@@ -36,14 +36,12 @@ const List = () => {
         fetchInvites();
     }, []);
 
-    // Function to get platform label
     const getPlatformLabel = (platformValue: string) => {
         const platform = meetingPlatforms.find(p => p.value === platformValue);
         return platform ? platform.label : platformValue;
     };
 
-    // Function to format meeting status
-    const getStatusBadge = (status: string, platform: string) => {
+    const getStatusBadge = (status: string | undefined, platform: string) => {
         const statusText = status ?? "Scheduled";
         const platformText = getPlatformLabel(platform);
         return `${statusText} (${platformText})`;
@@ -53,8 +51,8 @@ const List = () => {
         <AppLayout
             navigation={<NavigationComponent />}
             navigationOpen={navigationOpen}
-            onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
-            notifications={<FlashbarComponent />}
+            onNavigationChange={({ detail }) => setsetNavigationOpen(detail.open)}
+            notifications={<FlashbarComponent items={[]} />}
             toolsHide={false}
             tools={
                 <HelpPanel header={<h3>Instructions</h3>}>
@@ -103,10 +101,7 @@ const List = () => {
                                             setSelectedInvites([]);
                                         }
                                     }}
-                                    disabled={
-                                        !selectedInvites ||
-                                        selectedInvites.length === 0
-                                    }
+                                    disabled={selectedInvites.length === 0}
                                 >
                                     Delete
                                 </Button>
@@ -118,7 +113,7 @@ const List = () => {
                 >
                     <Cards
                         onSelectionChange={({ detail }) =>
-                            setSelectedInvites(detail?.selectedItems ?? [])
+                            setSelectedInvites(detail.selectedItems)
                         }
                         selectedItems={selectedInvites}
                         cardDefinition={{
@@ -138,6 +133,7 @@ const List = () => {
                                 {
                                     id: "meeting_password",
                                     header: "Meeting Password",
+ ,
                                     content: (invite) => invite.meetingPassword,
                                 },
                                 {
@@ -146,7 +142,7 @@ const List = () => {
                                     content: (invite) => {
                                         if (!invite.meetingTime) return "Immediate";
                                         const meetingDateTime = new Date(
-                                            invite.meetingTime
+                                            invite.meetingTime * 1000
                                         );
                                         return meetingDateTime.toLocaleString(
                                             "en-US",
@@ -203,4 +199,3 @@ const List = () => {
 };
 
 export default List;
-
