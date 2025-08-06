@@ -8,7 +8,6 @@ import {
     Form,
     FormField,
     Header,
-    HelpPanel,
     Input,
     Select,
     SpaceBetween,
@@ -24,7 +23,7 @@ import { meetingPlatforms } from "../platform";
 
 export default function Create() {
     const [name, setName] = useState("");
-    const [platform, setPlatform] = useState(meetingPlatforms[0].value);
+    const [platform, setPlatform] = useState<string>(meetingPlatforms[0].value);
     const [meetingId, setMeetingId] = useState("");
     const [meetingPassword, setMeetingPassword] = useState("");
     const [showMeetingPassword, setShowMeetingPassword] = useState(false);
@@ -35,7 +34,7 @@ export default function Create() {
     const { addNotification } = useContext(NotificationContext);
     const client = generateClient();
 
-    const handleSubmit = async (event: any) => {
+    const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
 
         if (!name) {
@@ -132,7 +131,7 @@ export default function Create() {
                             <FormField label="Platform">
                                 <Select
                                     selectedOption={meetingPlatforms.find(p => p.value === platform) || null}
-                                    onChange={({ detail }) => setPlatform(detail.selectedOption.value)}
+                                    onChange={({ detail }) => setPlatform(detail.selectedOption?.value || "")}
                                     options={meetingPlatforms}
                                 />
                             </FormField>
@@ -167,11 +166,11 @@ export default function Create() {
                                 {showDateTime && (
                                     <SpaceBetween direction="horizontal" size="xs">
                                         <DatePicker
-                                            value={meetingDate}
+                                            value={meetingDate || ""}
                                             onChange={({ detail }) => setMeetingDate(detail.value)}
                                         />
                                         <TimeInput
-                                            value={meetingTime}
+                                            value={meetingTime || ""}
                                             onChange={({ detail }) => setMeetingTime(detail.value)}
                                         />
                                     </SpaceBetween>
