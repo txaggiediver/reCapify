@@ -34,9 +34,7 @@ export default function Create() {
     const { addNotification } = useContext(NotificationContext);
     const client = generateClient();
 
-    const handleSubmit = async (event: React.FormEvent) => {
-        event.preventDefault();
-
+    const handleSubmit = async () => {
         if (!name) {
             setError("Name is required");
             return;
@@ -113,7 +111,7 @@ export default function Create() {
                                 <Button
                                     formAction="submit"
                                     variant="primary"
-                                    onClick={handleSubmit}
+                                    onClick={() => handleSubmit()}
                                     disabled={!name || !meetingId}
                                 >
                                     {showDateTime ? "Schedule Invite" : "Create Invite"}
@@ -131,7 +129,7 @@ export default function Create() {
                             <FormField label="Platform">
                                 <Select
                                     selectedOption={meetingPlatforms.find(p => p.value === platform) || null}
-                                    onChange={({ detail }) => setPlatform(detail.selectedOption?.value || "")}
+                                    onChange={({ detail }) => setPlatform(detail.selectedOption?.value || meetingPlatforms[0].value)}
                                     options={meetingPlatforms}
                                 />
                             </FormField>
@@ -188,3 +186,4 @@ export default function Create() {
         />
     );
 }
+

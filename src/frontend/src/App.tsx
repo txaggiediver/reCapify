@@ -17,7 +17,8 @@ import {
 import { NotificationContext } from "./components/notifications";
 import { onUpdateInvite } from "./graphql/subscriptions";
 import CreateInvite from "./pages/create";
-import ListInvites from "./pages/listist";
+import ListInvites from "./pages/list";
+
 
 const config = await (await fetch("./config.json")).json();
 Amplify.configure(

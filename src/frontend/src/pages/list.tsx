@@ -13,7 +13,7 @@ import { Invite } from "../API";
 import NavigationComponent from "../components/navigation";
 import { FlashbarComponent } from "../components/notifications";
 import { deleteInvite } from "../graphql/mutations";
-import { listInvitvites } from "../graphql/queries";
+import { listInvites } from "../graphql/queries";
 import { meetingPlatforms } from "../platform";
 
 const List = () => {
@@ -41,9 +41,9 @@ const List = () => {
         return platform ? platform.label : platformValue;
     };
 
-    const getStatusBadge = (status: string | undefined, platform: string) => {
+    const getStatusBadge = (status: string | undefined, meetingPlatform: string) => {
         const statusText = status ?? "Scheduled";
-        const platformText = getPlatformLabel(platform);
+        const platformText = getPlatformLabel(meetingPlatform);
         return `${statusText} (${platformText})`;
     };
 
@@ -51,7 +51,7 @@ const List = () => {
         <AppLayout
             navigation={<NavigationComponent />}
             navigationOpen={navigationOpen}
-            onNavigationChange={({ detail }) => setsetNavigationOpen(detail.open)}
+            onNavigationChange={({ detail }) => setNavigationOpen(detail.open)}
             notifications={<FlashbarComponent items={[]} />}
             toolsHide={false}
             tools={
@@ -72,7 +72,7 @@ const List = () => {
                             actions={
                                 <Button
                                     onClick={() => {
-                                        if (selectedInvites) {
+                                        if (selectedInvites.length > 0) {
                                             selectedInvites.forEach((invite) => {
                                                 client
                                                     .graphql({
@@ -123,17 +123,16 @@ const List = () => {
                                     id: "meeting_platform",
                                     header: "Meeting Platform",
                                     content: (invite) =>
-                                        getPlatformLabel(invite.platform),
+                                        getPlatformLabel(invite.meetingPlatform),
                                 },
                                 {
                                     id: "meeting_url",
                                     header: "Meeting URL",
-                                    content: (invite) => invite.meetingURL,
+                                    content: (invite) => invite.meetingId,
                                 },
                                 {
                                     id: "meeting_password",
                                     header: "Meeting Password",
- ,
                                     content: (invite) => invite.meetingPassword,
                                 },
                                 {
@@ -162,8 +161,8 @@ const List = () => {
                                     header: "Scribe Status",
                                     content: (invite) =>
                                         getStatusBadge(
-                                            invite.status,
-                                            invite.platform
+                                            invite.status ?? undefined,
+                                            invite.meetingPlatform
                                         ),
                                 },
                             ],
@@ -199,3 +198,4 @@ const List = () => {
 };
 
 export default List;
+
