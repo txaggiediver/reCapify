@@ -1,40 +1,46 @@
-import { App } from "aws-cdk-lib";
-import AuthStack from "../lib/auth";
-import ApiStack from "../lib/api";
-import FrontendStack from "../lib/frontend";
-import ReCapifyBackendStack from "../lib/backend";
+#!/usr/bin/env node
+import 'source-map-support/register';
+import * as cdk from 'aws-cdk-lib';
+import AuthStack from '../lib/auth';
+import ApiStack from '../lib/api';
+import FrontendStack from '../lib/frontend';
 
-const app = new App();
-const name = process.env.STACK_NAME || "ReCapify";
-const regionConfig = {
-    env: {
-        region: process.env.AWS_REGION || "us-east-1",
-    },
-    crossRegionReferences: true,
+const app = new cdk.App();
+
+// Environment configuration (you can adjust this as needed)
+const env = {
+  account: process.env.CDK_DEFAULT_ACCOUNT,
+  region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
 };
 
-const authStack = new AuthStack(app, `${name}-Auth`, {
-    ...regionConfig,
+// Create the Auth stack
+const authStack = new AuthStack(app, 'ReCapify-Auth', {
+  env: env,
+  // Add any other props needed for AuthStack
 });
 
-const apiStack = new ApiStack(app, `${name}-Api`, {
-    userPool: authStack.userPool,
-    ...regionConfig,
+// Create the API stack
+const apiStack = new ApiStack(app, 'ReCapify-Api', {
+  env: env,
+  userPoolId: authStack.userPool.userPoolId,
+  // Add any other props needed for ApiStack
 });
 
-new FrontendStack(app, `${name}-Frontend`, {
-    userPoolId: authStack.userPool.userPoolId,
-    userPoolClientId: authStack.userPoolClient.userPoolClientId,
-    graphApiUrl: apiStack.graphApi.graphqlUrl,
-    env: {
-        region: "us-east-1",
-    },
-    crossRegionReferences: true,
+// Create the Frontend stack
+const frontendStack = new FrontendStack(app, 'ReCapify-Frontend', {
+  env: env,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+  graphApiUrl: apiStack.graphqlUrl, // Make sure this property exists in your ApiStack
 });
 
-new ReCapifyBackendStack(app, `${name}-Backend`, {
-    authStack: authStack,
-    apiStack: apiStack,
-    ...regionConfig,
-});
+// Add dependencies
+apiStack.addDependency(authStack);
+frontendStack.addDependency(authStack);
+frontendStack.addDependency(apiStack);
+
+// Add tags to all stacks
+cdk.Tags.of(app).add('project', 'ReCapify');
+
+app.synth();
 

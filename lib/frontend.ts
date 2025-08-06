@@ -8,7 +8,6 @@ import {
     aws_cloudfront_origins as cloudfront_origins,
     aws_lambda as lambda,
     aws_s3_deployment as s3_deployment,
-    aws_ssm as ssm,
     CfnOutput,
 } from "aws-cdk-lib";
 import { Construct } from "constructs";
@@ -64,9 +63,7 @@ export default class FrontendStack extends Stack {
         const distribution = new cloudfront.Distribution(this, "distribution", {
             defaultRootObject: "index.html",
             defaultBehavior: {
-                origin: cloudfront_origins.S3BucketOrigin.withOriginAccessControl(
-                    websiteBucket
-                ),
+                origin: new cloudfront_origins.S3Origin(websiteBucket),
                 viewerProtocolPolicy:
                     cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
                 allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
@@ -95,34 +92,33 @@ export default class FrontendStack extends Stack {
                 image: lambda.Runtime.NODEJS_20_X.bundlingImage,
                 local: {
                     tryBundle(outputDirectory: string) {
-                        execSync(
-                            [
-                                `cd ${websitePath}`,
-                                "npm install",
-                                "npm run build",
-                                `cp -r dist/* ${outputDirectory}/`,
-                            ].join(" && ")
-                        );
-                        return true;
+                        try {
+                            execSync(
+                                [
+                                    `cd ${websitePath}`,
+                                    "npm install",
+                                    "npm run build",
+                                    `cp -r dist/* ${outputDirectory}/`,
+                                ].join(" && ")
+                            );
+                            return true;
+                        } catch (error) {
+                            console.error('Local bundling failed:', error);
+                            return false;
+                        }
                     },
                 },
+                command: [
+                    'bash', '-c',
+                    `cd ${websitePath} && npm install && npm run build && cp -r dist/* /asset-output/`
+                ],
             },
         });
 
         const config = {
-            userPoolId: new ssm.StringParameter(this, "userPoolIdParam", {
-                stringValue: props.userPoolId,
-            }).stringValue,
-            userPoolClientId: new ssm.StringParameter(
-                this,
-                "userPoolClientIdParam",
-                {
-                    stringValue: props.userPoolClientId,
-                }
-            ).stringValue,
-            graphApiUrl: new ssm.StringParameter(this, "graphApiUrlParam", {
-                stringValue: props.graphApiUrl,
-            }).stringValue,
+            userPoolId: props.userPoolId,
+            userPoolClientId: props.userPoolClientId,
+            graphApiUrl: props.graphApiUrl,
         };
 
         new s3_deployment.BucketDeployment(this, "websiteDeployment", {
@@ -132,11 +128,18 @@ export default class FrontendStack extends Stack {
             ],
             destinationBucket: websiteBucket,
             distribution: distribution,
+            distributionPaths: ["/*"],
         });
 
-        new CfnOutput(this, "url", {
-            value: distribution.distributionDomainName,
-            description: "CloudFront URL",
+        new CfnOutput(this, "WebsiteURL", {
+            value: `https://${distribution.distributionDomainName}`,
+            description: "Website URL",
+        });
+
+        new CfnOutput(this, "BucketName", {
+            value: websiteBucket.bucketName,
+            description: "Website Bucket Name",
         });
     }
 }
+

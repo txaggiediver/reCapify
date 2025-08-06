@@ -84,5 +84,12 @@ export default class AuthStack extends Stack {
             userPoolId: this.userPool.userPoolId,
             username: this.identity.emailIdentityName,
         });
+new CfnOutput(this, "UserPoolId", {
+  value: this.userPool.userPoolId,
+});
+new CfnOutput(this, "UserPoolClientId", {
+  value: this.userPoolClient.userPoolClientId,
+});
+
     }
 }
