@@ -72,7 +72,7 @@ export default class ReCapifyBackendStack extends Stack {
 
     // Container
     const container = taskDefinition.addContainer('container', {
-      image: ecs.ContainerImage.fromAsset('container'),
+   image: ecs.ContainerImage.fromAsset('src/backend/task'),
       logging: new ecs.AwsLogDriver({
         streamPrefix: 'recapify',
         logGroup: logGroup,
