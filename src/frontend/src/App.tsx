@@ -14,10 +14,10 @@ import {
     Navigate,
     RouterProvider,
 } from "react-router-dom";
-import FlashbarContext from "./components/notifications";
+import { NotificationContext } from "./components/notifications";
 import { onUpdateInvite } from "./graphql/subscriptions";
 import CreateInvite from "./pages/create";
-import ListInvites from "./pages/list";
+import ListInvites from "./pages/listist";
 
 const config = await (await fetch("./config.json")).json();
 Amplify.configure(
@@ -52,7 +52,8 @@ Amplify.configure(
 
 export function App({ signOut, user }: WithAuthenticatorProps) {
     const client = generateClient();
-    const { updateFlashbar } = useContext(FlashbarContext);
+    const { updateFlashbar } = useContext(NotificationContext);
+
     useEffect(() => {
         const subscription = client
             .graphql({
@@ -60,10 +61,12 @@ export function App({ signOut, user }: WithAuthenticatorProps) {
             })
             .subscribe({
                 next: ({ data }) => {
-                    updateFlashbar(
-                        "info",
-                        `${data.onUpdateInvite.name}'s status updated to "${data.onUpdateInvite.status}".`
-                    );
+                    if (data.onUpdateInvite) {
+                        updateFlashbar(
+                            "info",
+                            `${data.onUpdateInvite.name}'s status updated to "${data.onUpdateInvite.status || 'unknown'}".`
+                        );
+                    }
                 },
                 error: (error) => {
                     console.error("Subscription error:", error);
@@ -71,11 +74,9 @@ export function App({ signOut, user }: WithAuthenticatorProps) {
             });
 
         return () => {
-            if (subscription) {
-                subscription.unsubscribe();
-            }
+            subscription.unsubscribe();
         };
-    }, []);
+    }, [updateFlashbar]);
 
     const router = createBrowserRouter([
         {
