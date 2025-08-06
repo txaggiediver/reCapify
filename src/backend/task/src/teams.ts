@@ -18,7 +18,7 @@ export default class Teams {
 
     public async initialize(page: Page): Promise<void> {
         console.log("Getting meeting link.");
-        await page.goto(details.invite.meetingLink);
+        await page.goto(details.invite.meetingId);
 
         console.log("Entering name.");
         try {
